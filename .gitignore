@@ -1,0 +1,23 @@
+# Binaries
+bin/
+*.exe
+
+# Test artifacts
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local config (for development)
+.wallet-cli/
+
+# Build artifacts
+dist/
