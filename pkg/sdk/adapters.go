@@ -315,8 +315,20 @@ func (a *KeystoreAdapter) IsLocked() bool {
 }
 
 // Unlock decrypts the keystore using PRF-derived key.
-func (a *KeystoreAdapter) Unlock(ctx context.Context, credentialID, prfOutput, encryptedData []byte) error {
-	return a.manager.Unlock(ctx, credentialID, prfOutput, encryptedData)
+func (a *KeystoreAdapter) Unlock(ctx context.Context, credentialID, prfOutput []byte, encryptedData interface{}) error {
+	// Convert encryptedData to []byte
+	var data []byte
+	switch v := encryptedData.(type) {
+	case []byte:
+		data = v
+	case string:
+		data = []byte(v)
+	case nil:
+		data = nil
+	default:
+		return fmt.Errorf("unsupported encrypted data type: %T", encryptedData)
+	}
+	return a.manager.Unlock(ctx, credentialID, prfOutput, data)
 }
 
 // Lock re-locks the keystore.
