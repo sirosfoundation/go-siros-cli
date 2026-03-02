@@ -1,0 +1,5 @@
+8576ebadc0bf68b32e28ed7eca54793f  usr/bin/wallet-cli
+d18babfe149368ccf1d7a1e4467cf267  usr/lib/systemd/user/wallet-cli-daemon.service
+adcc138d1580ef5e35090d8459a6de34  usr/lib/systemd/user/wallet-cli-daemon.socket
+5289edc0589195305912287266d1ea4a  usr/share/doc/wallet-cli/changelog.Debian.gz
+9a67841593d3fb830526780322e339f6  usr/share/doc/wallet-cli/copyright

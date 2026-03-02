@@ -10,6 +10,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+// DefaultTenantID is the default tenant identifier for backward compatibility
+// with single-tenant backends.
+const DefaultTenantID = "default"
+
 // Config holds the application configuration.
 type Config struct {
 	// ActiveProfile is the currently active profile name
@@ -64,6 +68,10 @@ type AuthConfig struct {
 type ProfileConfig struct {
 	// Name is the profile name
 	Name string `mapstructure:"name"`
+
+	// TenantID is the tenant identifier for multi-tenant backends
+	// Defaults to "default" for backward compatibility
+	TenantID string `mapstructure:"tenant_id"`
 
 	// BackendURL is the wallet backend server URL
 	BackendURL string `mapstructure:"backend_url"`
@@ -172,8 +180,13 @@ func Load(cfgFile string, profile string) (*Config, error) {
 		// Profile might not exist yet, that's okay
 		profileCfg = &ProfileConfig{
 			Name:       cfg.ActiveProfile,
+			TenantID:   DefaultTenantID,
 			BackendURL: "http://localhost:8080",
 		}
+	}
+	// Ensure TenantID has a default value for backward compatibility
+	if profileCfg.TenantID == "" {
+		profileCfg.TenantID = DefaultTenantID
 	}
 	cfg.ProfileSettings = profileCfg
 
@@ -212,6 +225,7 @@ func SaveProfile(profile *ProfileConfig) error {
 
 	v := viper.New()
 	v.Set("name", profile.Name)
+	v.Set("tenant_id", profile.TenantID)
 	v.Set("backend_url", profile.BackendURL)
 	v.Set("webauthn_rp_id", profile.WebAuthnRpID)
 	v.Set("token", profile.Token)

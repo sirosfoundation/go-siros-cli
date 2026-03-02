@@ -1,0 +1,11 @@
+[Unit]
+Description=SIROS Wallet CLI Daemon Socket
+Documentation=man:wallet-cli(1)
+
+[Socket]
+ListenStream=%t/wallet-cli/daemon.sock
+SocketMode=0600
+DirectoryMode=0700
+
+[Install]
+WantedBy=sockets.target

@@ -1,6 +1,7 @@
 package pinentry
 
 import (
+	"os"
 	"testing"
 )
 
@@ -90,6 +91,15 @@ func TestGetPIN_MethodArg(t *testing.T) {
 }
 
 func TestGetPIN_NilConfig(t *testing.T) {
+	// Skip in automated tests - this would prompt for real PIN input
+	if testing.Short() {
+		t.Skip("Skipping interactive pinentry test in short mode")
+	}
+	// Check for CI environment
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Skip("Skipping interactive pinentry test in CI")
+	}
+
 	// This test checks that GetPIN handles nil config gracefully
 	// It will try to use pinentry which may or may not be available
 	// So we just verify it doesn't panic
@@ -189,6 +199,15 @@ func TestConfig(t *testing.T) {
 }
 
 func TestGetPIN_DefaultMethod(t *testing.T) {
+	// Skip in automated tests - this would prompt for real PIN input
+	if testing.Short() {
+		t.Skip("Skipping interactive pinentry test in short mode")
+	}
+	// Check for CI environment
+	if os.Getenv("CI") != "" || os.Getenv("GITHUB_ACTIONS") != "" {
+		t.Skip("Skipping interactive pinentry test in CI")
+	}
+
 	// Test that default method falls through to pinentry or terminal
 	cfg := &Config{
 		Method: Method("unknown"),

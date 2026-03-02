@@ -1,0 +1,29 @@
+#!/bin/sh
+set -e
+
+#DEBHELPER#
+
+case "$1" in
+    configure)
+        # Try to enable and start the user service if we can detect the user
+        if [ -n "$SUDO_USER" ] && [ "$SUDO_USER" != "root" ]; then
+            echo "Enabling wallet-cli-daemon for user $SUDO_USER..."
+            if su - "$SUDO_USER" -c "systemctl --user daemon-reload && systemctl --user enable wallet-cli-daemon.service" 2>/dev/null; then
+                echo "  Service enabled. Start with: systemctl --user start wallet-cli-daemon"
+            else
+                echo "  Could not auto-enable. Please run manually:"
+                echo "    systemctl --user enable --now wallet-cli-daemon.service"
+            fi
+        else
+            echo ""
+            echo "wallet-cli-daemon systemd user service installed."
+            echo ""
+            echo "To enable and start the daemon for your user:"
+            echo "  systemctl --user daemon-reload"
+            echo "  systemctl --user enable --now wallet-cli-daemon.service"
+            echo ""
+        fi
+        ;;
+esac
+
+exit 0

@@ -88,6 +88,7 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("=== Profile Settings ===")
 	fmt.Printf("  name:                   %s\n", cfg.GetProfile().Name)
+	fmt.Printf("  tenant_id:              %s\n", valueOrDefault(cfg.GetProfile().TenantID, config.DefaultTenantID))
 	fmt.Printf("  backend_url:            %s\n", valueOrDefault(cfg.GetProfile().BackendURL, "(not set)"))
 	fmt.Printf("  webauthn_rp_id:         %s\n", valueOrDefault(cfg.GetProfile().WebAuthnRpID, "(not set)"))
 	fmt.Printf("  display_name:           %s\n", valueOrDefault(cfg.GetProfile().DisplayName, "(not set)"))
@@ -123,6 +124,7 @@ var configParameters = []configParameter{
 	{"auth.callback_timeout", "Timeout for browser WebAuthn callbacks", "30s", "global"},
 
 	// Profile settings
+	{"tenant_id", "Tenant identifier for multi-tenant backends", "default", "profile"},
 	{"backend_url", "Wallet backend server URL", "http://localhost:8080", "profile"},
 	{"webauthn_rp_id", "WebAuthn relying party ID (set by server)", "", "profile"},
 	{"display_name", "Human-readable name for this wallet", "", "profile"},
@@ -208,6 +210,8 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 
 	// Handle profile-specific settings
 	switch key {
+	case "tenant_id":
+		cfg.GetProfile().TenantID = value
 	case "backend_url":
 		cfg.GetProfile().BackendURL = value
 	case "display_name":
@@ -239,6 +243,8 @@ func runConfigGet(cmd *cobra.Command, args []string) error {
 
 	var value interface{}
 	switch key {
+	case "tenant_id":
+		value = cfg.GetProfile().TenantID
 	case "backend_url":
 		value = cfg.GetProfile().BackendURL
 	case "display_name":
@@ -277,6 +283,7 @@ func runConfigInit(cmd *cobra.Command, args []string) error {
 	// Create default profile
 	defaultProfile := &config.ProfileConfig{
 		Name:       "default",
+		TenantID:   config.DefaultTenantID,
 		BackendURL: "http://localhost:8080",
 	}
 

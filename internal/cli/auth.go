@@ -148,6 +148,7 @@ func runAuthRegister(cmd *cobra.Command, args []string) error {
 
 	// Create backend client
 	client := backend.NewClient(profile.BackendURL)
+	client.SetTenantID(profile.TenantID)
 	ctx := context.Background()
 
 	// 1. Start registration
@@ -357,6 +358,7 @@ func runAuthLogin(cmd *cobra.Command, args []string) error {
 
 	// Create backend client
 	client := backend.NewClient(profile.BackendURL)
+	client.SetTenantID(profile.TenantID)
 	ctx := context.Background()
 
 	// 1. Start login
@@ -517,6 +519,7 @@ func runAuthStatus(cmd *cobra.Command, args []string) error {
 
 	// Check if token is valid by calling backend
 	client := backend.NewClient(profile.BackendURL)
+	client.SetTenantID(profile.TenantID)
 	client.SetToken(profile.Token)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

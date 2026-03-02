@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -154,17 +155,97 @@ func runPresent(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// TODO: Implement VP creation and submission
-	// 1. Select matching credentials
-	// 2. Apply selective disclosure based on requested fields
-	// 3. Create VP token (JWT or SD-JWT presentation)
-	// 4. Sign with holder's key
-	// 5. Submit to verifier
+	// Get an unlocked keystore for signing
+	fmt.Println("\nPreparing to sign presentation...")
+	ks, err := getUnlockedKeystoreWithTimeout(60 * time.Second)
+	if err != nil {
+		return fmt.Errorf("failed to unlock keystore: %w", err)
+	}
+	defer ks.Lock()
 
-	fmt.Println("\n⚠ VP creation and submission not yet fully implemented")
-	fmt.Println("  Would submit to:", vpClient.GetResponseEndpoint(authReq))
-	if authReq.State != "" {
-		fmt.Println("  State:", authReq.State)
+	// Get the first available key
+	keys, err := ks.ListKeys()
+	if err != nil || len(keys) == 0 {
+		return fmt.Errorf("no keys available for signing")
+	}
+
+	key := keys[0]
+	privateKey, err := ks.GetPrivateKey(key.KeyID)
+	if err != nil {
+		return fmt.Errorf("failed to get private key: %w", err)
+	}
+
+	// Create VP generator
+	vpGenerator := oid4vp.NewVPGenerator(
+		key.KeyID,
+		privateKey,
+		key.PublicKey,
+		key.Algorithm,
+		key.DID,
+	)
+
+	// For now, use the first credential
+	// TODO: Implement proper credential matching against presentation definition
+	selectedCred := credentials[0]
+
+	// Determine if it's an SD-JWT (contains ~) or regular JWT
+	var vpToken string
+	isSDJWT := strings.Contains(selectedCred.Credential, "~")
+
+	responseEndpoint := vpClient.GetResponseEndpoint(authReq)
+
+	if isSDJWT {
+		fmt.Print("Creating SD-JWT presentation... ")
+		vpToken, err = vpGenerator.CreateSDJWTPresentation(
+			selectedCred.Credential,
+			authReq.Nonce,
+			authReq.ClientID,
+		)
+	} else {
+		fmt.Print("Creating VP token... ")
+		vpToken, err = vpGenerator.CreateVPToken(
+			[]string{selectedCred.Credential},
+			authReq.Nonce,
+			authReq.ClientID,
+		)
+	}
+
+	if err != nil {
+		fmt.Println("✗")
+		return fmt.Errorf("failed to create presentation: %w", err)
+	}
+	fmt.Println("✓")
+
+	// Build presentation submission
+	matches := []oid4vp.CredentialMatch{
+		{
+			DescriptorID: authReq.PresentationDefinition.InputDescriptors[0].ID,
+			CredentialID: selectedCred.ID,
+			Format:       selectedCred.Format,
+		},
+	}
+	presentationSubmission := vpClient.BuildPresentationSubmission(
+		authReq.PresentationDefinition.ID,
+		matches,
+	)
+
+	// Submit to verifier
+	fmt.Print("Submitting presentation to verifier... ")
+	result, err := vpClient.SubmitAuthorizationResponse(
+		responseEndpoint,
+		vpToken,
+		presentationSubmission,
+		authReq.State,
+	)
+	if err != nil {
+		fmt.Println("✗")
+		return fmt.Errorf("failed to submit presentation: %w", err)
+	}
+	fmt.Println("✓")
+
+	fmt.Println("\n✅ Presentation submitted successfully!")
+	if result != nil && result.RedirectURI != "" {
+		fmt.Printf("Redirect URI: %s\n", result.RedirectURI)
 	}
 
 	return nil

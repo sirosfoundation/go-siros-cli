@@ -162,8 +162,12 @@ func (p *TestProvider) Register(ctx context.Context, opts *RegisterOptions) (*Re
 		return nil, err
 	}
 
-	// Build public key in uncompressed point format
-	publicKeyBytes := elliptic.Marshal(privateKey.PublicKey.Curve, privateKey.PublicKey.X, privateKey.PublicKey.Y)
+	// Build public key in uncompressed point format using ECDH
+	ecdhKey, err := privateKey.ECDH()
+	if err != nil {
+		return nil, err
+	}
+	publicKeyBytes := ecdhKey.PublicKey().Bytes()
 
 	// Store the credential
 	cred := &TestCredential{

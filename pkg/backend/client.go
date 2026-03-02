@@ -17,7 +17,14 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 	token      string
+	tenantID   string
 }
+
+// TenantIDHeader is the HTTP header name for tenant identification.
+const TenantIDHeader = "X-Tenant-ID"
+
+// DefaultTenantID is the default tenant identifier for backward compatibility.
+const DefaultTenantID = "default"
 
 // NewClient creates a new backend client.
 func NewClient(baseURL string) *Client {
@@ -26,6 +33,7 @@ func NewClient(baseURL string) *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		tenantID: DefaultTenantID,
 	}
 }
 
@@ -37,6 +45,21 @@ func (c *Client) SetToken(token string) {
 // GetToken returns the current authentication token.
 func (c *Client) GetToken() string {
 	return c.token
+}
+
+// SetTenantID sets the tenant identifier for API requests.
+// This will be sent as the X-Tenant-ID header on all requests.
+func (c *Client) SetTenantID(tenantID string) {
+	if tenantID != "" {
+		c.tenantID = tenantID
+	} else {
+		c.tenantID = DefaultTenantID
+	}
+}
+
+// GetTenantID returns the current tenant identifier.
+func (c *Client) GetTenantID() string {
+	return c.tenantID
 }
 
 // Status checks the backend status.
@@ -139,6 +162,25 @@ type LoginFinishResponse struct {
 	Username     string      `json:"username,omitempty"`
 	PrivateData  interface{} `json:"privateData,omitempty"`
 	WebauthnRpId string      `json:"webauthnRpId"`
+}
+
+// --- Account Info ---
+
+// GetAccountInfo retrieves account information for the current user.
+func (c *Client) GetAccountInfo(ctx context.Context) (*AccountInfoResponse, error) {
+	var resp AccountInfoResponse
+	if err := c.get(ctx, "/session/account-info", &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
+// AccountInfoResponse represents the account info response.
+type AccountInfoResponse struct {
+	UUID        string      `json:"uuid"`
+	DisplayName string      `json:"displayName"`
+	Username    string      `json:"username,omitempty"`
+	PrivateData interface{} `json:"privateData,omitempty"`
 }
 
 // --- Credentials ---
@@ -299,6 +341,11 @@ func (c *Client) delete(ctx context.Context, path string) error {
 func (c *Client) doRequest(req *http.Request, result interface{}) error {
 	if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+
+	// Always set X-Tenant-ID header for multi-tenant support
+	if c.tenantID != "" {
+		req.Header.Set(TenantIDHeader, c.tenantID)
 	}
 
 	resp, err := c.httpClient.Do(req)

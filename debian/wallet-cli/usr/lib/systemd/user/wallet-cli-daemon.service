@@ -1,0 +1,30 @@
+[Unit]
+Description=SIROS Wallet CLI Daemon
+Documentation=man:wallet-cli(1)
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wallet-cli daemon start
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.config/wallet-cli %t/wallet-cli
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+LockPersonality=true
+
+# Keep environment for X11/Wayland and dbus (for pinentry)
+PassEnvironment=DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS
+
+[Install]
+WantedBy=default.target

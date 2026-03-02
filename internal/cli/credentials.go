@@ -101,6 +101,7 @@ func getAuthenticatedClient() (*backend.Client, error) {
 	}
 
 	client := backend.NewClient(profile.BackendURL)
+	client.SetTenantID(profile.TenantID)
 	client.SetToken(profile.Token)
 	return client, nil
 }

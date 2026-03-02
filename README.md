@@ -132,6 +132,47 @@ make build-all
 
 See [docs/CLI_WALLET_DESIGN.md](docs/CLI_WALLET_DESIGN.md) for detailed design documentation.
 
+## Daemon & MCP Server
+
+The wallet includes a background daemon with MCP (Model Context Protocol) integration for AI assistants:
+
+```bash
+# Start the daemon
+wallet-cli daemon start
+
+# Enable MCP server for Claude Desktop
+wallet-cli daemon start --mcp
+```
+
+Configure Claude Desktop (`~/.config/claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "wallet": {
+      "command": "wallet-cli",
+      "args": ["daemon", "start", "--mcp"]
+    }
+  }
+}
+```
+
+See [docs/DAEMON.md](docs/DAEMON.md) for full daemon documentation.
+
+## Debian Package
+
+Build a Debian package:
+
+```bash
+make deb
+```
+
+Install:
+
+```bash
+sudo dpkg -i ../wallet-cli_0.1.0-1_amd64.deb
+```
+
 ## License
 
 Apache 2.0 - See [LICENSE](LICENSE)

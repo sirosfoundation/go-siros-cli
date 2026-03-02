@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export GOPROXY = https://proxy.golang.org,direct
+export CGO_ENABLED = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	go build -v -o debian/build/wallet-cli ./cmd/wallet-cli
+
+override_dh_auto_test:
+	go test -v -short ./...
+
+override_dh_auto_install:
+	install -D -m 755 debian/build/wallet-cli debian/wallet-cli/usr/bin/wallet-cli
+
+override_dh_installsystemduser:
+	dh_installsystemduser --name=wallet-cli-daemon
+
+# Go binaries don't work well with dwz
+override_dh_dwz:
+
+override_dh_auto_clean:
+	rm -rf debian/build
+	dh_auto_clean

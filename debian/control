@@ -1,0 +1,26 @@
+Source: wallet-cli
+Section: utils
+Priority: optional
+Maintainer: SIROS Foundation <info@siros.org>
+Build-Depends: debhelper-compat (= 13), golang-go (>= 2:1.22~), libfido2-dev
+Standards-Version: 4.6.2
+Homepage: https://github.com/sirosfoundation/go-siros-cli
+Vcs-Browser: https://github.com/sirosfoundation/go-siros-cli
+Vcs-Git: https://github.com/sirosfoundation/go-siros-cli.git
+Rules-Requires-Root: no
+
+Package: wallet-cli
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libfido2-1
+Recommends: pinentry-gnome3 | pinentry-gtk-3 | pinentry-qt | pinentry
+Suggests: yubikey-manager
+Description: SIROS Wallet CLI - Verifiable credentials wallet
+ wallet-cli is a command-line tool for managing verifiable credentials
+ using hardware-backed security keys (FIDO2/WebAuthn).
+ .
+ Features:
+  - Hardware-backed key storage using FIDO2 PRF extension
+  - Issue and present verifiable credentials
+  - OpenID for Verifiable Credentials (OID4VC) support
+  - Background daemon with MCP server for AI assistant integration
+  - Pinentry-based user approval for sensitive operations

@@ -230,6 +230,31 @@ func runIssueOffer(cmd *cobra.Command, args []string) error {
 	// 6. Request credentials
 	var receivedCredentials []*backend.Credential
 
+	// Get keystore for proof generation if c_nonce is present
+	var proofGenerator *oid4vci.ProofGenerator
+	if tokenResp.CNonce != "" {
+		fmt.Println("\nProof of possession required, authenticating...")
+		ks, err := getUnlockedKeystoreWithTimeout(60 * time.Second)
+		if err != nil {
+			return fmt.Errorf("failed to unlock keystore for proof generation: %w", err)
+		}
+		defer ks.Lock()
+
+		// Get the first available key
+		keys, err := ks.ListKeys()
+		if err != nil || len(keys) == 0 {
+			return fmt.Errorf("no keys available for proof generation")
+		}
+
+		key := keys[0]
+		privateKey, err := ks.GetPrivateKey(key.KeyID)
+		if err != nil {
+			return fmt.Errorf("failed to get private key: %w", err)
+		}
+
+		proofGenerator = oid4vci.NewProofGenerator(key.KeyID, privateKey, key.PublicKey, key.Algorithm)
+	}
+
 	for _, configID := range offer.CredentialConfigurationIDs {
 		config, ok := metadata.CredentialConfigurationsSupported[configID]
 		if !ok {
@@ -245,10 +270,14 @@ func runIssueOffer(cmd *cobra.Command, args []string) error {
 		}
 
 		// Add proof if required (c_nonce indicates proof is needed)
-		if tokenResp.CNonce != "" {
-			// Note: In a full implementation, we'd generate a proper JWT proof
-			// using the wallet's key. For now, we'll try without proof first.
-			// TODO: Implement proof generation with wallet keys
+		if proofGenerator != nil && tokenResp.CNonce != "" {
+			proof, err := proofGenerator.CreateProof(offer.CredentialIssuer, tokenResp.CNonce, "")
+			if err != nil {
+				fmt.Println("✗")
+				fmt.Printf("  Error generating proof: %v\n", err)
+				continue
+			}
+			credReq.Proof = proof
 		}
 
 		credResp, err := oidClient.RequestCredential(ctx, metadata.CredentialEndpoint, tokenResp.AccessToken, credReq)

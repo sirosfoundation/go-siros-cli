@@ -1,0 +1,182 @@
+syntax = "proto3";
+
+package siros.daemon.v1;
+
+option go_package = "github.com/siros-io/go-siros-cli/api/proto/daemon/v1;daemonv1";
+
+// WalletDaemon provides wallet operations over IPC.
+service WalletDaemon {
+  // Status returns the current daemon status.
+  rpc Status(StatusRequest) returns (StatusResponse);
+  
+  // UnlockWithPRF unlocks the wallet using FIDO2 PRF.
+  rpc UnlockWithPRF(UnlockWithPRFRequest) returns (UnlockResponse);
+  
+  // UnlockWithPassword unlocks the wallet using a password.
+  rpc UnlockWithPassword(UnlockWithPasswordRequest) returns (UnlockResponse);
+  
+  // Lock locks the wallet.
+  rpc Lock(LockRequest) returns (LockResponse);
+  
+  // SignJWT signs a JWT with the specified key and claims.
+  rpc SignJWT(SignJWTRequest) returns (SignJWTResponse);
+  
+  // Sign performs a raw signature operation.
+  rpc Sign(SignRequest) returns (SignResponse);
+  
+  // ListKeys returns all available keys.
+  rpc ListKeys(ListKeysRequest) returns (ListKeysResponse);
+  
+  // GetApproval requests user approval for an operation (MCP flow).
+  rpc GetApproval(GetApprovalRequest) returns (GetApprovalResponse);
+}
+
+// StatusRequest is empty - no parameters needed.
+message StatusRequest {}
+
+// StatusResponse contains daemon status information.
+message StatusResponse {
+  // Whether the daemon is running (always true if you get a response).
+  bool running = 1;
+  
+  // Whether the keystore is unlocked.
+  bool unlocked = 2;
+  
+  // Number of keys available (only if unlocked).
+  int32 key_count = 3;
+  
+  // Seconds until automatic lock (only if unlocked).
+  int32 timeout_remaining = 4;
+  
+  // Active tenant ID if set.
+  string tenant_id = 5;
+}
+
+// UnlockWithPRFRequest contains PRF unlock parameters.
+message UnlockWithPRFRequest {
+  // RP ID for WebAuthn (typically the tenant domain).
+  string rp_id = 1;
+  
+  // Credential ID to use for PRF.
+  bytes credential_id = 2;
+  
+  // Optional user display name for authenticator prompt.
+  string user_display_name = 3;
+}
+
+// UnlockWithPasswordRequest contains password unlock parameters.
+message UnlockWithPasswordRequest {
+  // Password to unlock the keystore.
+  string password = 1;
+}
+
+// UnlockResponse is returned after unlock attempts.
+message UnlockResponse {
+  // Whether unlock was successful.
+  bool success = 1;
+  
+  // Error message if unsuccessful.
+  string error = 2;
+}
+
+// LockRequest is empty - no parameters needed.
+message LockRequest {}
+
+// LockResponse is returned after lock.
+message LockResponse {
+  // Whether lock was successful.
+  bool success = 1;
+}
+
+// SignJWTRequest contains JWT signing parameters.
+message SignJWTRequest {
+  // Key ID to use for signing.
+  string key_id = 1;
+  
+  // JWT claims as JSON.
+  bytes claims_json = 2;
+  
+  // Optional JWT headers to include.
+  map<string, string> headers = 3;
+}
+
+// SignJWTResponse contains the signed JWT.
+message SignJWTResponse {
+  // The signed JWT.
+  string jwt = 1;
+  
+  // Error message if signing failed.
+  string error = 2;
+}
+
+// SignRequest contains raw signing parameters.
+message SignRequest {
+  // Key ID to use for signing.
+  string key_id = 1;
+  
+  // Data to sign (typically a hash).
+  bytes data = 2;
+}
+
+// SignResponse contains the signature.
+message SignResponse {
+  // The signature (DER-encoded for ECDSA).
+  bytes signature = 1;
+  
+  // Error message if signing failed.
+  string error = 2;
+}
+
+// ListKeysRequest is empty - no parameters needed.
+message ListKeysRequest {}
+
+// KeyInfo describes a key in the keystore.
+message KeyInfo {
+  // Key identifier.
+  string key_id = 1;
+  
+  // Key algorithm (e.g., "ES256").
+  string algorithm = 2;
+  
+  // Whether key is PRF-protected.
+  bool prf_protected = 3;
+  
+  // Optional credential ID if PRF-protected.
+  bytes credential_id = 4;
+  
+  // Creation timestamp (Unix seconds).
+  int64 created_at = 5;
+}
+
+// ListKeysResponse contains available keys.
+message ListKeysResponse {
+  // List of key information.
+  repeated KeyInfo keys = 1;
+}
+
+// GetApprovalRequest asks for user approval of an operation.
+message GetApprovalRequest {
+  // Type of operation requiring approval.
+  string operation_type = 1;
+  
+  // Human-readable description of the operation.
+  string description = 2;
+  
+  // Timeout in seconds before auto-deny.
+  int32 timeout_seconds = 3;
+  
+  // Optional additional context as JSON.
+  bytes context_json = 4;
+}
+
+// GetApprovalResponse contains the approval result.
+message GetApprovalResponse {
+  // Whether the operation was approved.
+  bool approved = 1;
+  
+  // Whether the request timed out.
+  bool timed_out = 2;
+  
+  // Error message if approval failed.
+  string error = 3;
+}

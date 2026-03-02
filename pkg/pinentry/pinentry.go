@@ -145,16 +145,16 @@ func getPINFromPinentry(cfg *Config) (string, error) {
 
 	// Set title
 	if cfg.Title != "" {
-		if resp, err := sendCommand(fmt.Sprintf("SETTITLE %s", escapeAssuan(cfg.Title))); err != nil || !strings.HasPrefix(resp, "OK") {
-			// Ignore errors for optional commands
-		}
+		resp, err := sendCommand(fmt.Sprintf("SETTITLE %s", escapeAssuan(cfg.Title)))
+		// Ignore errors for optional commands
+		_, _ = resp, err
 	}
 
 	// Set description
 	if cfg.Description != "" {
-		if resp, err := sendCommand(fmt.Sprintf("SETDESC %s", escapeAssuan(cfg.Description))); err != nil || !strings.HasPrefix(resp, "OK") {
-			// Ignore errors for optional commands
-		}
+		resp, err := sendCommand(fmt.Sprintf("SETDESC %s", escapeAssuan(cfg.Description)))
+		// Ignore errors for optional commands
+		_, _ = resp, err
 	}
 
 	// Set prompt
@@ -162,15 +162,17 @@ func getPINFromPinentry(cfg *Config) (string, error) {
 	if prompt == "" {
 		prompt = "PIN:"
 	}
-	if resp, err := sendCommand(fmt.Sprintf("SETPROMPT %s", escapeAssuan(prompt))); err != nil || !strings.HasPrefix(resp, "OK") {
+	{
+		resp, err := sendCommand(fmt.Sprintf("SETPROMPT %s", escapeAssuan(prompt)))
 		// Ignore errors for optional commands
+		_, _ = resp, err
 	}
 
 	// Set error text if provided
 	if cfg.ErrorText != "" {
-		if resp, err := sendCommand(fmt.Sprintf("SETERROR %s", escapeAssuan(cfg.ErrorText))); err != nil || !strings.HasPrefix(resp, "OK") {
-			// Ignore errors for optional commands
-		}
+		resp, err := sendCommand(fmt.Sprintf("SETERROR %s", escapeAssuan(cfg.ErrorText)))
+		// Ignore errors for optional commands
+		_, _ = resp, err
 	}
 
 	// Request PIN
@@ -219,7 +221,7 @@ func getPINFromStdin(cfg *Config) (string, error) {
 // getPINFromTerminal prompts interactively in the terminal.
 func getPINFromTerminal(cfg *Config) (string, error) {
 	// Check if we have a terminal
-	if !term.IsTerminal(int(syscall.Stdin)) {
+	if !term.IsTerminal(syscall.Stdin) {
 		return "", fmt.Errorf("no terminal available for PIN entry")
 	}
 
@@ -241,7 +243,7 @@ func getPINFromTerminal(cfg *Config) (string, error) {
 	fmt.Fprintf(os.Stderr, "%s ", prompt)
 
 	// Read PIN without echo
-	pinBytes, err := term.ReadPassword(int(syscall.Stdin))
+	pinBytes, err := term.ReadPassword(syscall.Stdin)
 	fmt.Fprintln(os.Stderr) // Add newline after PIN entry
 
 	if err != nil {
@@ -260,12 +262,12 @@ func getPINFromTerminal(cfg *Config) (string, error) {
 func findPinentry() string {
 	// Try common pinentry programs in order of preference
 	candidates := []string{
-		"pinentry",           // Default on most systems
-		"pinentry-gnome3",    // GNOME
-		"pinentry-gtk-2",     // GTK
-		"pinentry-qt",        // Qt/KDE
-		"pinentry-curses",    // Terminal-based
-		"pinentry-tty",       // Simple TTY
+		"pinentry",        // Default on most systems
+		"pinentry-gnome3", // GNOME
+		"pinentry-gtk-2",  // GTK
+		"pinentry-qt",     // Qt/KDE
+		"pinentry-curses", // Terminal-based
+		"pinentry-tty",    // Simple TTY
 	}
 
 	for _, name := range candidates {
@@ -302,4 +304,158 @@ func HasPinentry() bool {
 // GetPinentryPath returns the path to the pinentry program.
 func GetPinentryPath() string {
 	return findPinentry()
+}
+
+// ConfirmConfig holds configuration for a confirmation dialog.
+type ConfirmConfig struct {
+	// Program is the path to the pinentry program.
+	Program string
+
+	// Title is the window title.
+	Title string
+
+	// Description is the descriptive text shown to the user.
+	Description string
+
+	// OKButton is the text for the OK/approve button.
+	OKButton string
+
+	// CancelButton is the text for the Cancel/deny button.
+	CancelButton string
+
+	// Timeout in seconds (0 for no timeout).
+	Timeout int
+}
+
+// DefaultConfirmConfig returns a default confirmation configuration.
+func DefaultConfirmConfig() *ConfirmConfig {
+	return &ConfirmConfig{
+		Title:        "Wallet Approval Required",
+		Description:  "An application is requesting access to your wallet.",
+		OKButton:     "Approve",
+		CancelButton: "Deny",
+	}
+}
+
+// GetConfirmation shows a confirmation dialog and returns true if approved.
+// Falls back to terminal prompt if pinentry is not available.
+func GetConfirmation(cfg *ConfirmConfig) (bool, error) {
+	if cfg == nil {
+		cfg = DefaultConfirmConfig()
+	}
+
+	program := cfg.Program
+	if program == "" {
+		program = findPinentry()
+	}
+
+	if program == "" {
+		// Fall back to terminal confirmation
+		return getConfirmationFromTerminal(cfg)
+	}
+
+	return getConfirmationFromPinentry(cfg, program)
+}
+
+// getConfirmationFromPinentry uses the pinentry CONFIRM command.
+func getConfirmationFromPinentry(cfg *ConfirmConfig, program string) (bool, error) {
+	cmd := exec.Command(program)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return false, fmt.Errorf("failed to create stdin pipe: %w", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return false, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return false, fmt.Errorf("failed to start pinentry: %w", err)
+	}
+
+	reader := bufio.NewReader(stdout)
+
+	// Helper to send command
+	sendCommand := func(command string) (string, error) {
+		if _, err := fmt.Fprintf(stdin, "%s\n", command); err != nil {
+			return "", err
+		}
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		return strings.TrimSpace(line), nil
+	}
+
+	// Read initial OK
+	if line, err := reader.ReadString('\n'); err != nil || !strings.HasPrefix(line, "OK") {
+		cmd.Process.Kill()
+		return false, fmt.Errorf("pinentry did not respond correctly")
+	}
+
+	// Set title
+	if cfg.Title != "" {
+		sendCommand(fmt.Sprintf("SETTITLE %s", escapeAssuan(cfg.Title)))
+	}
+
+	// Set description
+	if cfg.Description != "" {
+		sendCommand(fmt.Sprintf("SETDESC %s", escapeAssuan(cfg.Description)))
+	}
+
+	// Set button text
+	if cfg.OKButton != "" {
+		sendCommand(fmt.Sprintf("SETOK %s", escapeAssuan(cfg.OKButton)))
+	}
+	if cfg.CancelButton != "" {
+		sendCommand(fmt.Sprintf("SETCANCEL %s", escapeAssuan(cfg.CancelButton)))
+	}
+
+	// Set timeout if specified
+	if cfg.Timeout > 0 {
+		sendCommand(fmt.Sprintf("SETTIMEOUT %d", cfg.Timeout))
+	}
+
+	// Request confirmation
+	resp, err := sendCommand("CONFIRM")
+
+	// Close pinentry
+	sendCommand("BYE")
+	stdin.Close()
+	cmd.Wait()
+
+	if err != nil {
+		return false, fmt.Errorf("pinentry error: %w", err)
+	}
+
+	// Check response
+	if strings.HasPrefix(resp, "OK") {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// getConfirmationFromTerminal prompts in the terminal.
+func getConfirmationFromTerminal(cfg *ConfirmConfig) (bool, error) {
+	// Check if stdin is a terminal
+	if !term.IsTerminal(syscall.Stdin) {
+		return false, fmt.Errorf("no terminal available for confirmation")
+	}
+
+	fmt.Println()
+	fmt.Println(cfg.Title)
+	fmt.Println(strings.Repeat("-", len(cfg.Title)))
+	fmt.Println(cfg.Description)
+	fmt.Println()
+	fmt.Printf("[%s/deny]: ", cfg.OKButton)
+
+	var response string
+	fmt.Scanln(&response)
+	response = strings.ToLower(strings.TrimSpace(response))
+
+	approved := response == "y" || response == "yes" || response == "approve" ||
+		strings.ToLower(response) == strings.ToLower(cfg.OKButton)
+
+	return approved, nil
 }

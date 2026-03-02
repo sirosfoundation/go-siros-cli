@@ -1,0 +1,10 @@
+wallet-cli (0.1.0-1) unstable; urgency=medium
+
+  * Initial Debian package release
+  * Wallet daemon with gRPC server
+  * MCP server integration for AI assistants
+  * FIDO2 PRF-based key derivation
+  * Verifiable credentials issuance and presentation
+  * Pinentry-based user approval flow
+
+ -- SIROS Foundation <info@siros.org>  Mon, 02 Mar 2026 14:12:31 +0100

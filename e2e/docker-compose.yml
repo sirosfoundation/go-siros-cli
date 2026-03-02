@@ -1,0 +1,42 @@
+# E2E Test Docker Compose for go-siros-cli
+# This sets up the go-wallet-backend for integration testing
+
+services:
+  mongodb:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: test
+      MONGO_INITDB_ROOT_PASSWORD: test
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  wallet-backend:
+    build:
+      context: ../../go-wallet-backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - MONGO_URI=mongodb://test:test@mongodb:27017
+      - MONGO_DB=wallet_test
+      - WEBAUTHN_RP_ID=localhost
+      - WEBAUTHN_RP_DISPLAY_NAME=Test Wallet
+      - WEBAUTHN_RP_ORIGINS=http://localhost:8080,https://localhost
+      - LOG_LEVEL=debug
+      - JWT_SECRET=test-secret-for-e2e-testing
+      - APP_TOKEN_SECRET=test-app-token-secret
+      - TENANT_ID=default
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10

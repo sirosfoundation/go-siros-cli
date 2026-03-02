@@ -1,0 +1,13 @@
+Package: wallet-cli-dbgsym
+Package-Type: ddeb
+Source: wallet-cli
+Version: 0.1.0-1
+Auto-Built-Package: debug-symbols
+Architecture: amd64
+Maintainer: SIROS Foundation <info@siros.org>
+Installed-Size: 6653
+Depends: wallet-cli (= 0.1.0-1)
+Section: debug
+Priority: optional
+Description: debug symbols for wallet-cli
+Build-Ids: 133dd81d43ed2ac9419bc2d38066709108111215
