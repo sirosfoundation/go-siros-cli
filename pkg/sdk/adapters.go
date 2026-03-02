@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Package sdk provides integration with the go-wallet-backend native SDK.
 // This package bridges the existing go-siros-cli packages with the SDK
 // interfaces, enabling unified wallet functionality.

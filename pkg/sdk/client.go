@@ -1,3 +1,5 @@
+//go:build sdk
+
 // Package sdk provides integration with the go-wallet-backend native SDK.
 package sdk
 

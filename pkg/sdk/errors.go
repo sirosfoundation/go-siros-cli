@@ -1,3 +1,5 @@
+//go:build sdk
+
 package sdk
 
 import "errors"
